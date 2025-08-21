@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <title>Tournois de Padel – Demo</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <nav>
+    <button data-view="players">Joueurs & Paires</button>
+    <button data-view="tournaments">Tournois</button>
+    <button data-view="matches">Matchs & Live</button>
+    <button data-view="about">À propos</button>
+  </nav>
+
+  <!-- Joueurs & paires ------------------------------------------------------>
+  <section id="view-players" class="view">
+    <h2>Joueurs</h2>
+    <form id="playerForm">
+      <input name="firstName" placeholder="Prénom" required />
+      <input name="lastName" placeholder="Nom" required />
+      <input name="license" placeholder="Licence (optionnel)" />
+      <button>Ajouter</button>
+    </form>
+    <ul id="playersList"></ul>
+
+    <h2>Paires</h2>
+    <form id="pairForm">
+      <select name="p1"></select>
+      <select name="p2"></select>
+      <input name="seed" type="number" min="1" placeholder="Tête de série" />
+      <button>Créer paire</button>
+    </form>
+    <ul id="pairsList"></ul>
+  </section>
+
+  <!-- Tournois --------------------------------------------------------------->
+  <section id="view-tournaments" class="view hidden">
+    <h2>Tournois</h2>
+    <form id="tournamentForm">
+      <input name="name" placeholder="Nom" required />
+      <input type="date" name="startDate" required />
+      <input type="date" name="endDate" required />
+      <input name="category" placeholder="Catégorie (ex. P100)" required />
+      <label><input type="checkbox" name="superTB" checked /> Super tie-break</label>
+      <button>Créer tournoi</button>
+    </form>
+    <ul id="tournamentsList"></ul>
+  </section>
+
+  <!-- Matchs & live --------------------------------------------------------->
+  <section id="view-matches" class="view hidden">
+    <h2>Matchs</h2>
+    <select id="matchSelect"></select>
+    <div id="scoreboard" class="hidden">
+      <h3 id="matchTitle"></h3>
+      <div id="sets"></div>
+      <div class="buttons">
+        <button id="p1Point">Point P1</button>
+        <button id="p2Point">Point P2</button>
+        <button id="undo">Undo</button>
+        <button id="finish">Valider</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- À propos -------------------------------------------------------------->
+  <section id="view-about" class="view hidden">
+    <h2>À propos</h2>
+    <p>Application locale – données stockées dans votre navigateur.</p>
+    <button id="export">Exporter JSON</button>
+    <input type="file" id="importFile" style="display:none" />
+    <button id="import">Importer JSON</button>
+    <button id="reset">Réinitialiser</button>
+    <button id="seed">Charger démo</button>
+    <textarea id="jsonOut" readonly></textarea>
+  </section>
+
+  <script src="app.js"></script>
+</body>
+</html>
