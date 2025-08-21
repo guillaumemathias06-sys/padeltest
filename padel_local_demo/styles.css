@@ -4,6 +4,19 @@ body {
   padding: 0;
   background: #f4f4f4;
 }
+button {
+  background: #007bff;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+button:hover {
+  background: #0056b3;
+}
 nav {
   display: flex;
   gap: 4px;
@@ -12,14 +25,7 @@ nav {
 }
 nav button {
   flex: 1;
-  padding: 10px;
-  color: #fff;
-  background: #3a3a3a;
-  border: none;
-  cursor: pointer;
-  transition: background 0.2s;
 }
-nav button:hover { background: #575757; }
 .view {
   padding: 1rem;
   max-width: 900px;
