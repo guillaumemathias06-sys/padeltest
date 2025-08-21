@@ -68,13 +68,42 @@ function verifyPassword(password, stored) {
 function addPlayer(data) {
   const players = readJSON(PLAYERS_PATH);
   const id = 'p' + crypto.randomUUID();
-  players.push({ id, firstName: data.firstName, lastName: data.lastName, license: data.license || '' });
+  players.push({
+    id,
+    firstName: data.firstName,
+    lastName: data.lastName,
+    license: data.license || '',
+    photo: data.photo || '',
+    bio: data.bio || '',
+    preferences: data.preferences || [],
+    ranking: typeof data.ranking === 'number' ? data.ranking : null,
+    stats: data.stats || { wins: 0, losses: 0 },
+    tournaments: data.tournaments || []
+  });
   writeJSON(PLAYERS_PATH, players);
   return id;
 }
 
-function listPlayers() {
-  return readJSON(PLAYERS_PATH);
+function listPlayers(filters = {}) {
+  const players = readJSON(PLAYERS_PATH);
+  let result = players;
+  if (filters.name) {
+    const n = String(filters.name).toLowerCase();
+    result = result.filter(p => `${p.firstName} ${p.lastName}`.toLowerCase().includes(n));
+  }
+  if (filters.minRanking !== undefined) {
+    const min = Number(filters.minRanking);
+    result = result.filter(p => typeof p.ranking === 'number' && p.ranking >= min);
+  }
+  if (filters.maxRanking !== undefined) {
+    const max = Number(filters.maxRanking);
+    result = result.filter(p => typeof p.ranking === 'number' && p.ranking <= max);
+  }
+  return result;
+}
+
+function getPlayer(id) {
+  return readJSON(PLAYERS_PATH).find(p => p.id === id) || null;
 }
 
 function addPair(p1, p2, seed) {
@@ -212,7 +241,16 @@ const server = http.createServer((req, res) => {
     return authMiddleware(req, res, () => profile(req, res));
   }
   if (req.method === 'GET' && parsed.pathname === '/players') {
-    return res.end(JSON.stringify(listPlayers()));
+    return res.end(JSON.stringify(listPlayers(parsed.query)));
+  }
+  const playerMatch = parsed.pathname.match(/^\/players\/(.+)$/);
+  if (req.method === 'GET' && playerMatch) {
+    const player = getPlayer(playerMatch[1]);
+    if (!player) {
+      res.statusCode = 404;
+      return res.end(JSON.stringify({ error: 'Not found' }));
+    }
+    return res.end(JSON.stringify(player));
   }
   if (req.method === 'POST' && parsed.pathname === '/players') {
     return parseBody(req, body => {
@@ -289,5 +327,6 @@ module.exports = {
   listTournaments,
   registerPair,
   listRegistrations,
+  getPlayer,
   server
 };
