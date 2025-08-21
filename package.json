@@ -1,0 +1,14 @@
+{
+  "name": "padeltest",
+  "version": "1.0.0",
+  "description": "Service d'authentification simple",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node test.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs"
+}
