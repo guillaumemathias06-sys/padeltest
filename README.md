@@ -7,7 +7,9 @@ Ce projet fournit un service d'authentification minimal en Node.js sans dépenda
 - `POST /auth/login` – connexion, renvoie un JWT basique.
 - `GET /profile` – retourne le profil de l'utilisateur connecté.
 - `GET /players` – liste des joueurs enregistrés.
-- `POST /players` – ajoute un joueur (`firstName`, `lastName`, `license`).
+- `POST /players` – ajoute un joueur (`firstName`, `lastName`, `license`, `bio?`, `photo?`, `preferences?`, `ranking?`).
+- `GET /players/:id` – retourne le profil complet d'un joueur.
+- `GET /players?name=&minRanking=&maxRanking=` – recherche de joueurs.
 - `GET /pairs` – liste des paires.
 - `POST /pairs` – crée une paire (`p1`, `p2`, `seed`).
 - `GET /tournaments` – liste des tournois.

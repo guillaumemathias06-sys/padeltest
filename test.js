@@ -25,9 +25,11 @@ fs.writeFileSync('./data/pairs.json', '[]');
 fs.writeFileSync('./data/tournaments.json', '[]');
 
 // players and pairs
-const p1 = addPlayer({ firstName: 'A', lastName: 'B' });
-const p2 = addPlayer({ firstName: 'C', lastName: 'D' });
+const p1 = addPlayer({ firstName: 'A', lastName: 'B', ranking: 100, bio: 'player A' });
+const p2 = addPlayer({ firstName: 'C', lastName: 'D', ranking: 200 });
 assert(listPlayers().length === 2);
+assert(listPlayers({ name: 'A' }).length === 1);
+assert(listPlayers({ minRanking: 150 }).length === 1);
 const pairId = addPair(p1, p2, 1);
 assert(listPairs().some(p => p.id === pairId));
 
