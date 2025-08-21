@@ -1,0 +1,15 @@
+[
+  {
+    "id": "tf4dd2f72-21d5-4939-aac8-367da45d7283",
+    "name": "Open",
+    "startDate": "2023-01-01",
+    "endDate": "2023-01-02",
+    "category": "P100",
+    "rules": {
+      "superTB": true
+    },
+    "registrations": [
+      "pr38b156bc-74d2-4f13-8859-91ff18dda144"
+    ]
+  }
+]
