@@ -46,14 +46,31 @@
       <button>Créer tournoi</button>
     </form>
     <ul id="tournamentsList"></ul>
+
+    <h3>Inscriptions</h3>
+    <select id="tournamentSelect"></select>
+    <div id="registrationBox" class="hidden">
+      <form id="registrationForm">
+        <select name="pairId"></select>
+        <button>Inscrire</button>
+      </form>
+      <ul id="registrationList"></ul>
+    </div>
   </section>
 
   <!-- Matchs & live --------------------------------------------------------->
   <section id="view-matches" class="view hidden">
     <h2>Matchs</h2>
+    <form id="matchForm">
+      <select name="tournamentId"></select>
+      <select name="pair1Id"></select>
+      <select name="pair2Id"></select>
+      <button>Créer match</button>
+    </form>
     <select id="matchSelect"></select>
     <div id="scoreboard" class="hidden">
       <h3 id="matchTitle"></h3>
+      <div id="current"></div>
       <div id="sets"></div>
       <div class="buttons">
         <button id="p1Point">Point P1</button>

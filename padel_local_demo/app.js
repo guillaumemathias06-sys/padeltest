@@ -57,7 +57,20 @@ const TournamentsService = {
     });
     saveDB();
   },
-  list() { return DB.tournaments; }
+  list() { return DB.tournaments; },
+  register(tournamentId, pairId) {
+    const t = DB.tournaments.find(t => t.id === tournamentId);
+    if (!t) return;
+    if (!t.registrations.find(r => r.pairId === pairId)) {
+      t.registrations.push({ pairId, status: "accepted" });
+      saveDB();
+    }
+  },
+  registrations(tournamentId) {
+    const t = DB.tournaments.find(t => t.id === tournamentId);
+    return t ? t.registrations : [];
+  },
+  get(id) { return DB.tournaments.find(t => t.id === id); }
 };
 
 const MatchesService = {
@@ -75,11 +88,11 @@ const MatchesService = {
 };
 
 // ---------------------------------------------------------------------------
-// Scoring Engine (simplifié : sets en 6 jeux, super tie-break à 10)
+// Scoring Engine : points 0/15/30/40/Ad, tie-break 7, super tie-break 10
 // ---------------------------------------------------------------------------
 const ScoringEngine = {
   applyPoint(match, winner) {
-    const state = match.state || initState();
+    const state = match.state || initState(getTournamentRules(match.tournamentId));
     const ev = { ts: Date.now(), type: "POINT", winner };
     state.events.push(ev);
     applyEvents(state);
@@ -97,39 +110,91 @@ const ScoringEngine = {
   }
 };
 
-function initState() {
-  return { events: [], points: [0, 0], games: [0, 0], sets: [], finished: false };
+function initState(rules) {
+  return {
+    events: [],
+    points: [0, 0],
+    games: [0, 0],
+    sets: [],
+    tbPoints: [0, 0],
+    inTB: false,
+    superTB: false,
+    finished: false,
+    rules
+  };
 }
 
 function applyEvents(s) {
-  s.points = [0, 0];
-  s.games = [0, 0];
-  s.sets = [];
-  s.finished = false;
-  s.events.forEach(ev => processPoint(ev.winner, s));
+  const evs = s.events.slice();
+  const rules = s.rules;
+  Object.assign(s, initState(rules));
+  s.events = evs;
+  evs.forEach(ev => processPoint(ev.winner, s));
 }
 
 function processPoint(winner, s) {
   if (s.finished) return;
   const loser = winner === 0 ? 1 : 0;
-  s.points[winner]++;
-  if (s.points[winner] >= 4 && s.points[winner] - s.points[loser] >= 2) {
-    // jeu gagné
-    s.games[winner]++;
-    s.points = [0, 0];
-    if (s.games[winner] >= 6 && s.games[winner] - s.games[loser] >= 2) {
-      // set gagné
-      s.sets.push({ p1: s.games[0], p2: s.games[1] });
-      s.games = [0, 0];
-      if (s.sets.length === 2) {
-        s.finished = true;
+
+  if (s.superTB) {
+    s.tbPoints[winner]++;
+    if (s.tbPoints[winner] >= s.rules.superTBTo && s.tbPoints[winner] - s.tbPoints[loser] >= 2) {
+      s.sets.push({ p1: s.games[0], p2: s.games[1], tb: [...s.tbPoints] });
+      s.finished = true;
+    }
+    return;
+  }
+
+  if (s.inTB) {
+    s.tbPoints[winner]++;
+    if (s.tbPoints[winner] >= s.rules.tbTo && s.tbPoints[winner] - s.tbPoints[loser] >= 2) {
+      s.games[winner]++;
+      s.inTB = false;
+      s.tbPoints = [0, 0];
+    }
+  } else {
+    s.points[winner]++;
+    if (s.points[winner] >= 4 && s.points[winner] - s.points[loser] >= 2) {
+      s.games[winner]++;
+      s.points = [0, 0];
+
+      if (s.games[winner] === 6 && s.games[loser] === 6) {
+        if (s.sets.length === 2 && s.rules.superTB) {
+          s.superTB = true;
+        } else {
+          s.inTB = true;
+        }
       }
+
+      if (s.games[winner] >= 6 && s.games[winner] - s.games[loser] >= 2) {
+        s.sets.push({ p1: s.games[0], p2: s.games[1] });
+        s.games = [0, 0];
+        if (s.sets.length === 2) {
+          if (s.rules.superTB) {
+            s.superTB = true;
+          } else {
+            s.finished = true;
+          }
+        }
+      }
+    } else if (s.points[winner] === s.points[loser] && s.points[winner] >= 3) {
+      // retour à égalité après avantage
+      s.points = [3, 3];
     }
   }
 }
 
 function serializeScore(s) {
   return { sets: s.sets };
+}
+
+function formatCurrent(state) {
+  if (!state) return "";
+  if (state.superTB || state.inTB) {
+    return `Tie-break: ${state.tbPoints[0]}-${state.tbPoints[1]}`;
+  }
+  const labels = ["0","15","30","40","Ad"];
+  return `${labels[state.points[0]] || 0}-${labels[state.points[1]] || 0}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -171,11 +236,15 @@ function refreshPairs() {
 function refreshTournaments() {
   const list = document.getElementById("tournamentsList");
   list.innerHTML = "";
+  const opts = [];
   TournamentsService.list().forEach(t => {
     const li = document.createElement("li");
     li.textContent = `${t.name} (${t.category})`;
     list.appendChild(li);
+    opts.push(`<option value="${t.id}">${t.name}</option>`);
   });
+  document.getElementById("tournamentSelect").innerHTML = `<option value="">-- choisir --</option>` + opts.join("");
+  document.querySelector("#matchForm select[name='tournamentId']").innerHTML = `<option value="">Tournoi</option>` + opts.join("");
 }
 
 function refreshMatches() {
@@ -192,6 +261,43 @@ function pairLabel(id) {
   const pr = DB.pairs.find(p => p.id === id);
   if (!pr) return "?";
   return `${playerName(pr.p1)} / ${playerName(pr.p2)}`;
+}
+
+function refreshRegistrations(tournamentId) {
+  const box = document.getElementById("registrationBox");
+  if (!tournamentId) { box.classList.add("hidden"); return; }
+  box.classList.remove("hidden");
+  const list = document.getElementById("registrationList");
+  list.innerHTML = "";
+  const regs = TournamentsService.registrations(tournamentId);
+  regs.forEach(r => {
+    const li = document.createElement("li");
+    li.textContent = pairLabel(r.pairId);
+    list.appendChild(li);
+  });
+
+  const registered = regs.map(r => r.pairId);
+  const opts = PairsService.list()
+    .filter(pr => !registered.includes(pr.id))
+    .map(pr => `<option value="${pr.id}">${pr.p1Name} / ${pr.p2Name}</option>`) 
+    .join("");
+  document.querySelector("#registrationForm select[name='pairId']").innerHTML = `<option value="">Paire</option>` + opts;
+}
+
+function refreshMatchFormPairs() {
+  const tId = document.querySelector("#matchForm select[name='tournamentId']").value;
+  const regs = TournamentsService.registrations(tId);
+  const opts = regs.map(r => {
+    const pr = DB.pairs.find(p => p.id === r.pairId);
+    return `<option value="${pr.id}">${pairLabel(pr.id)}</option>`;
+  }).join("");
+  document.querySelector("#matchForm select[name='pair1Id']").innerHTML = `<option value="">Paire 1</option>` + opts;
+  document.querySelector("#matchForm select[name='pair2Id']").innerHTML = `<option value="">Paire 2</option>` + opts;
+}
+
+function getTournamentRules(id) {
+  const t = TournamentsService.get(id);
+  return t ? t.rules : { superTB: false, tbTo: 7, superTBTo: 10 };
 }
 
 // ---------------------------------------------------------------------------
@@ -224,11 +330,55 @@ document.getElementById("tournamentForm").onsubmit = e => {
   refreshTournaments();
 };
 
+document.getElementById("tournamentSelect").onchange = e => {
+  refreshRegistrations(e.target.value);
+  refreshMatchFormPairs();
+};
+
+document.querySelector("#matchForm select[name='tournamentId']").onchange = () => {
+  refreshMatchFormPairs();
+};
+
+document.getElementById("registrationForm").onsubmit = e => {
+  e.preventDefault();
+  const tId = document.getElementById("tournamentSelect").value;
+  const fd = new FormData(e.target);
+  const pairId = fd.get("pairId");
+  if (!tId || !pairId) return;
+  TournamentsService.register(tId, pairId);
+  refreshRegistrations(tId);
+  refreshMatchFormPairs();
+  e.target.reset();
+};
+
 document.getElementById("matchSelect").onchange = e => {
   const id = e.target.value;
   if (!id) return document.getElementById("scoreboard").classList.add("hidden");
   const m = MatchesService.get(id);
   showMatch(m);
+};
+
+document.getElementById("matchForm").onsubmit = e => {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  const tId = fd.get("tournamentId");
+  const p1 = fd.get("pair1Id");
+  const p2 = fd.get("pair2Id");
+  if (!tId || !p1 || !p2 || p1 === p2) return alert("Sélection invalide");
+  const match = {
+    id: "m" + Date.now(),
+    tournamentId: tId,
+    pair1Id: p1,
+    pair2Id: p2,
+    status: "scheduled",
+    state: initState(getTournamentRules(tId)),
+    score: { sets: [] }
+  };
+  MatchesService.add(match);
+  e.target.reset();
+  refreshMatches();
+  document.getElementById("matchSelect").value = match.id;
+  showMatch(match);
 };
 
 document.getElementById("p1Point").onclick = () => {
@@ -256,6 +406,8 @@ function showMatch(m) {
   document.getElementById("scoreboard").classList.remove("hidden");
   document.getElementById("matchTitle").textContent =
     `${pairLabel(m.pair1Id)} vs ${pairLabel(m.pair2Id)}`;
+  const current = document.getElementById("current");
+  current.textContent = formatCurrent(m.state);
 
   const sets = document.getElementById("sets");
   sets.innerHTML = "";
@@ -318,15 +470,16 @@ function seedData() {
     {id:"pr1",p1:"p1",p2:"p2",seed:1},
     {id:"pr2",p1:"p3",p2:"p4",seed:2}
   ];
-  const matches = [{
-    id:"m1",tournamentId:"t1",pair1Id:"pr1",pair2Id:"pr2",status:"scheduled",
-    state:initState(),score:{sets:[]}
-  }];
   const tournaments = [{
     id:"t1",name:"Open Démo",startDate:"2025-08-21",endDate:"2025-08-23",
     category:"P100",rules:{superTB:true,tbTo:7,superTBTo:10},
     format:{hasGroups:false,groupsCount:0,hasBracket:false,bracketSize:0},
-    registrations:[],groups:[],bracket:null,matchIds:["m1"]
+    registrations:[{pairId:"pr1",status:"accepted"},{pairId:"pr2",status:"accepted"}],
+    groups:[],bracket:null,matchIds:["m1"]
+  }];
+  const matches = [{
+    id:"m1",tournamentId:"t1",pair1Id:"pr1",pair2Id:"pr2",status:"scheduled",
+    state:initState(tournaments[0].rules),score:{sets:[]}
   }];
   return { players, pairs, tournaments, matches };
 }
@@ -338,6 +491,8 @@ function init() {
   refreshPlayers();
   refreshPairs();
   refreshTournaments();
+  refreshRegistrations("");
+  refreshMatchFormPairs();
   refreshMatches();
   showView("players");
 }
